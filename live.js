@@ -63,6 +63,9 @@
     ".lv-bug{position:absolute;top:10px;left:10px;z-index:2;pointer-events:none;background:rgba(0,0,0,.55);padding:4px 8px;border-radius:6px;font-weight:800;font-size:12px;letter-spacing:.08em}" +
     ".lv-now{margin:12px 0 4px;font-size:13px;color:#9aa0ad;text-transform:uppercase;letter-spacing:.08em}.lv-title{margin:0;font-size:19px}" +
     ".lv-bar{height:4px;background:#22252f;border-radius:3px;margin:10px 0 18px;overflow:hidden}.lv-bar i{display:block;height:100%;background:var(--c,#d90429)}" +
+    ".lv-gt{display:flex;gap:8px;margin:14px 0 8px;flex-wrap:wrap}.lv-gt button{padding:7px 12px;border-radius:999px;border:2px solid #22252f;background:#11131a;color:#cfd3dc;font-weight:700;cursor:pointer}.lv-gt button[aria-pressed=true]{background:var(--c,#d90429);border-color:var(--c,#d90429);color:#fff}" +
+    ".lv-on b{color:var(--c,#d90429)!important}.lv-gch{border:1px solid #22252f;border-radius:10px;margin:0 0 8px;padding:0 10px;border-left:6px solid var(--c)}.lv-gch summary{display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;list-style:none}.lv-gch summary::-webkit-details-marker{display:none}" +
+    ".lv-gn{flex:0 0 auto;font-weight:800;color:#fff}.lv-gnow{flex:1;min-width:0;color:#9aa0ad;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lv-gw{flex:0 0 auto;padding:5px 10px;border-radius:8px;border:0;background:var(--c);color:#fff;font-weight:800;cursor:pointer}" +
     ".lv-guide{list-style:none;margin:0;padding:0;border-top:1px solid #22252f}.lv-guide li{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #22252f}" +
     ".lv-guide b{flex:0 0 78px;color:#9aa0ad;font-weight:700}.lv-guide span{flex:1}" +
     ".lv-auth{max-width:420px;margin:40px auto;background:#11131a;border:1px solid #22252f;border-radius:14px;padding:22px}" +
@@ -213,10 +216,11 @@
       }).join("") + "</div>" : "") +
       '<div class="lv-screen"><span class="lv-bug"></span><span class="lv-watch">👁 … watching now</span><div id="lv-player"></div></div>' +
       '<p class="lv-now">Now playing</p><h3 class="lv-title"></h3><div class="lv-bar"><i></i></div>' +
-      '<p class="lv-now">Coming up</p><ul class="lv-guide"></ul></div>';
+      (CFG.guideHours ? '<div class="lv-gt"><button type="button" data-gv="ch" aria-pressed="true">This channel · next ' + CFG.guideHours + ' hrs</button><button type="button" data-gv="all" aria-pressed="false">TV Guide · all channels</button></div>' : '<p class="lv-now">Coming up</p>') + '<ul class="lv-guide"></ul><div class="lv-all" hidden></div></div>';
     wire();
     ov.querySelector("[data-out]").onclick = signOut;
     ov.querySelectorAll("[data-ch]").forEach(function (b) { b.onclick = function () { tune(b.dataset.ch); }; });
+    ov.querySelectorAll("[data-gv]").forEach(function (b) { b.onclick = function () { gview = b.dataset.gv; ov.querySelectorAll("[data-gv]").forEach(function (x) { x.setAttribute("aria-pressed", x === b); }); showGuide(); }; });
     ov.querySelector(".lv-guide").innerHTML = "<li><span>Loading the schedule…</span></li>";
     rtStart();
     getData().then(function () { tune(curCh); }, function () { ov.querySelector(".lv-guide").innerHTML = "<li><span>Couldn't load the schedule. Check your connection.</span></li>"; });
@@ -262,10 +266,37 @@
     });
   }
 
-  function guide(ch, idx, begin) {
-    var c = DATA[ch], h = "", t = begin + c.items[idx][2];
-    for (var k = 1; k <= 8; k++) { var it = c.items[(idx + k) % c.items.length]; h += "<li><b>" + fmtTime(t) + "</b><span>" + esc(it[1]) + "</span></li>"; t += it[2]; }
-    ov.querySelector(".lv-guide").innerHTML = h;
+  var gview = "ch", gArgs = null;
+  function sched(ch, idx, begin, hrs, max) {
+    var c = DATA[ch], out = [], t = begin, end = begin + hrs * 3600;
+    for (var k = 0; k < max && t < end; k++) { var it = c.items[(idx + k) % c.items.length]; out.push([t, it]); t += it[2]; }
+    return out;
+  }
+  function guide(ch, idx, begin) { gArgs = [ch, idx, begin]; showGuide(); }
+  function showGuide() {
+    if (!gArgs || !DATA) return;
+    var ul = ov.querySelector(".lv-guide"), all = ov.querySelector(".lv-all");
+    if (!ul) return;
+    if (!CFG.guideHours) {
+      var c = DATA[gArgs[0]], h = "", t = gArgs[2] + c.items[gArgs[1]][2];
+      for (var k = 1; k <= 8; k++) { var it = c.items[(gArgs[1] + k) % c.items.length]; h += "<li><b>" + fmtTime(t) + "</b><span>" + esc(it[1]) + "</span></li>"; t += it[2]; }
+      ul.innerHTML = h; return;
+    }
+    var hrs = CFG.guideHours;
+    if (gview === "ch") {
+      all.hidden = true; ul.hidden = false;
+      ul.innerHTML = sched(gArgs[0], gArgs[1], gArgs[2], hrs, 400).map(function (p, i) { return "<li" + (i === 0 ? ' class="lv-on"' : "") + "><b>" + (i === 0 ? "ON NOW" : fmtTime(p[0])) + "</b><span>" + esc(p[1][1]) + "</span></li>"; }).join("");
+    } else {
+      ul.hidden = true; all.hidden = false;
+      var now = nowS();
+      all.innerHTML = (CFG.channels || []).map(function (cc) {
+        if (!DATA[cc.id]) return "";
+        var a = at(cc.id, now), L = sched(cc.id, a.i, a.begin, hrs, 400);
+        return '<details class="lv-gch" style="--c:' + cc.color + '"' + (cc.id === cur ? " open" : "") + '><summary><span class="lv-gn">' + esc(cc.name) + '</span><span class="lv-gnow">' + esc(L[0][1][1]) + '</span><button type="button" class="lv-gw" data-tune="' + cc.id + '">Watch</button></summary><ul class="lv-guide">' +
+          L.slice(1).map(function (p) { return "<li><b>" + fmtTime(p[0]) + "</b><span>" + esc(p[1][1]) + "</span></li>"; }).join("") + "</ul></details>";
+      }).join("");
+      all.querySelectorAll("[data-tune]").forEach(function (b) { b.onclick = function (e) { e.preventDefault(); gview = "ch"; ov.querySelectorAll("[data-gv]").forEach(function (x) { x.setAttribute("aria-pressed", x.dataset.gv === "ch"); }); tune(b.dataset.tune); ov.querySelector(".lv-screen").scrollIntoView({ behavior: "smooth" }); }; });
+    }
   }
 
   d.addEventListener("keydown", function (e) { if (e.key === "Escape" && !ov.hidden) close(); });
