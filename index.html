@@ -727,7 +727,7 @@
       var MOVIES = read("movies"), TV = read("tv");
       var HUBD = (function(){ var el=document.getElementById("hubs"); try { return JSON.parse(el.textContent); } catch(e){ return {hubs:[],al:{}}; } })(), HUBS = HUBD.hubs || [], HAL = HUBD.al || {};
       function hubOf(src){ return HAL[src] || src; }
- var YTM = {}; MOVIES.forEach(function (m) { if (m.src === "YouTube Movies") YTM[m.id] = 1; }); TV.forEach(function (m) { if (m.src === "YouTube TV") YTM[m.id] = 1; }); document.addEventListener("click", function (ev) { var b = ev.target.closest && ev.target.closest("[data-play]"); if (!b || !YTM[b.dataset.play]) return; ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation(); location.href = "https://www.youtube.com/watch?v=" + b.dataset.play; }, true); new MutationObserver(function () { document.querySelectorAll("button[data-play]:not([data-ytl])").forEach(function (b) { if (!YTM[b.dataset.play]) return; b.setAttribute("data-ytl", "1"); if (/▶ Play/.test(b.textContent)) b.textContent = b.textContent.replace("▶ Play", "▶ Play in YouTube"); }); }).observe(document.getElementById("app") || document.body, { childList: true, subtree: true });
+ var YTM = {}; MOVIES.forEach(function (m) { if (m.src === "YouTube Movies") YTM[m.id] = 1; }); TV.forEach(function (m) { if (m.src === "YouTube TV") YTM[m.id] = 1; }); document.addEventListener("click", function (ev) { var b = ev.target.closest && ev.target.closest("[data-play]"); if (!b || !YTM[b.dataset.play]) return; ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation(); try { cwRecord(b.dataset.play); } catch (x) {} location.href = "https://www.youtube.com/watch?v=" + b.dataset.play; }, true); new MutationObserver(function () { document.querySelectorAll("button[data-play]:not([data-ytl])").forEach(function (b) { if (!YTM[b.dataset.play]) return; b.setAttribute("data-ytl", "1"); if (/▶ Play/.test(b.textContent)) b.textContent = b.textContent.replace("▶ Play", "▶ Play in YouTube"); }); }).observe(document.getElementById("app") || document.body, { childList: true, subtree: true });
       var app = document.getElementById("app"), sheet = document.getElementById("sheet");
       var GENRES = ["Western", "Drama", "Thriller", "Horror", "Action", "Christmas & Holiday", "Romance", "Comedy", "Sci-Fi", "Documentary", "Family & Kids", "Anime & Cult"];
       var GCOLOR = { "Western": "#9a4f0b", "Drama": "#b3123a", "Thriller": "#1d4ed8", "Horror": "#2b2b2b", "Action": "#c0150d", "Christmas & Holiday": "#0b6e30", "Romance": "#d6246e", "Comedy": "#a35a00", "Sci-Fi": "#5b21b6", "Documentary": "#0e7490", "Family & Kids": "#15803d", "Anime & Cult": "#9d174d" };
@@ -811,6 +811,46 @@
           '<span class="x-box__studio">' + esc(ep.show) + "</span>" +
           '<span class="x-box__spine"><span class="x-box__ep">' + epCode(ep) + "</span>" + esc(ep.t) + "</span></button>";
       }
+
+      // ---- Continue Watching (this device only, localStorage "bb_cw") ----
+      var CWK = "bb_cw";
+      function cwLoad() { try { var a = JSON.parse(localStorage.getItem(CWK) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+      function cwSave(a) { try { localStorage.setItem(CWK, JSON.stringify(a.slice(0, 20))); } catch (e) { /* storage full or blocked */ } }
+      function cwGet(id) { var a = cwLoad(); for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i]; return null; }
+      function cwRecord(id) {
+        var m = byId[id], ep = epById[id]; if (!m && !ep) return;
+        var a = cwLoad(), old = null;
+        a = a.filter(function (x) { if (x.id === id) { old = x; return false; } return true; });
+        var it = { id: id, kind: m ? "movie" : "episode", title: m ? m.t : ep.t, thumb: thumb(id), route: "#play/" + id, ts: Date.now() };
+        if (ep) { it.show = ep.show; it.ep = epCode(ep); }
+        if (old && old.prog) { it.prog = old.prog; if (old.dur) it.dur = old.dur; }
+        a.unshift(it); cwSave(a);
+      }
+      function cwProgress(id, t, d) {
+        var a = cwLoad(), ch = false;
+        a.forEach(function (x) { if (x.id === id) { if (d > 0) x.dur = Math.round(d); x.prog = (d > 0 && t > d - 30) ? 0 : Math.round(t); ch = true; } });
+        if (ch) cwSave(a);
+      }
+      function cwRemove(id) { cwSave(cwLoad().filter(function (x) { return x.id !== id; })); }
+      function cwStart(id) { var x = cwGet(id); if (!x || !x.prog || x.prog < 10) return 0; if (x.dur && x.prog > x.dur - 30) return 0; return x.prog; }
+      function cwCard(x) {
+        var m = byId[x.id], ep = epById[x.id], c = m ? (GCOLOR[m.g] || "#e3241b") : showColor(x.show || x.title), pct = x.prog && x.dur ? Math.min(100, Math.round(x.prog / x.dur * 100)) : 0;
+        var lab = ep ? epCode(ep) : (x.ep || ""); x.title = (m ? m.t : ep ? ep.t : x.title) || x.title || "";
+        return '<div class="x-pick x-cw" style="position:relative">' +
+          '<button class="x-box" type="button" data-play="' + esc(x.id) + '" style="--c:' + c + '" aria-label="Continue ' + esc(x.show ? x.show + ", " + lab + ", " : "") + esc(x.title) + '">' +
+          '<img src="' + esc(x.thumb || thumb(x.id)) + '" alt="" loading="lazy" decoding="async">' +
+          '<span class="x-box__studio">' + esc(x.show || (m ? studioShort(m.src) : "Movie")) + "</span>" +
+          (pct ? '<span aria-hidden="true" style="position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(0,0,0,.55);z-index:3"><span style="display:block;height:100%;width:' + pct + '%;background:#e3241b"></span></span>' : "") +
+          '<span class="x-box__spine">' + (x.show ? '<span class="x-box__ep">' + esc(lab) + "</span>" : "") + esc(x.title) + "</span></button>" +
+          '<button type="button" data-cwx="' + esc(x.id) + '" aria-label="Remove ' + esc(x.title) + ' from Continue Watching" title="Remove" style="position:absolute;top:4px;right:4px;z-index:5;width:26px;height:26px;border-radius:50%;border:2px solid #fff;background:rgba(0,0,0,.75);color:#fff;font:700 15px/1 sans-serif;cursor:pointer;padding:0">×</button></div>';
+      }
+      function drawCW() {
+        var sec = document.getElementById("cw"); if (!sec) return;
+        var a = cwLoad().filter(function (x) { return byId[x.id] || epById[x.id]; });
+        sec.hidden = !a.length;
+        sec.innerHTML = a.length ? '<div class="x-row-head">' + sign("Continue Watching", 2) + '<p class="x-sub">Pick up where you left off.</p></div><div class="x-shelf"><div class="x-row">' + a.map(cwCard).join("") + "</div></div>" : "";
+      }
+      document.addEventListener("click", function (e) { var b = e.target.closest && e.target.closest("[data-cwx]"); if (!b) return; e.preventDefault(); e.stopPropagation(); cwRemove(b.getAttribute("data-cwx")); drawCW(); });
 
       // paging: renders ~40 at a time, more as the reader nears the end
       var cleanups = [];
@@ -1121,6 +1161,7 @@
           '<p class="x-counts">' + fmt(MOVIES.length) + " movies · " + fmt(TV.length) + " TV episodes · always free</p>" +
           '<div class="x-cta"><a class="x-btn" href="#aisles">Browse the Aisles</a><a class="x-btn x-btn--red" href="#tv">TV Section</a></div></div></section>';
         h += '<section class="x-live"><div class="x-live__l"><button class="x-live__btn" type="button" data-golive><span class="x-live__dot"></span>LIVE TV</button></div><div class="x-live__r"><h2>12 channels. On the air right now.</h2><p>' + (session ? 'Darkness Falls, Kid Rewind, What\'s Up DOC? TV and more, free for members. Tap LIVE TV to tune in.' : 'Darkness Falls, Kid Rewind, What\'s Up DOC? TV and more. Create your free Blockbuster+ account to watch live TV.') + '</p>' + (session ? '' : '<button class="x-btn x-btn--sm" type="button" data-golive>Create free account</button>') + '</div></section>';
+        h += '<section class="x-section" id="cw" aria-label="Continue Watching" hidden></section>';
         if (HUBS.length) h += '<section class="x-section"><div class="x-row-head">' + sign("Studio Hubs", 3) + '<a class="x-more" href="#studios">All ' + HUBS.length + ' studios ›</a></div><div class="x-hubrow">' + HUBS.map(hubTile).join("") + '</div></section>';
         h += '<section class="x-section"><div class="x-row-head">' + sign("New Release Wall", 0) + '<a class="x-more" href="#aisle/new">See the wall ›</a></div><div class="x-shelf"><div class="x-row">' + MOVIES.slice(0, 40).map(box).join("") + "</div></div></section>";
         if (TRAILERS.length) h += '<section class="x-section"><div class="x-row-head">' + sign("Coming Soon to a Theater Near You", 1) + '<a class="x-more" href="#trailers">All ' + TRAILERS.length + ' trailers ›</a></div><div class="x-trlrow">' + TRAILERS.slice(0, 24).map(trlTile).join("") + "</div></section>";
@@ -1148,7 +1189,7 @@
         if (logo && slot) { var c = logo.cloneNode(true); c.removeAttribute("id"); c.setAttribute("class", "x-wordmark x-hero__logo"); slot.replaceWith(c); }
         var hp = document.getElementById("heroimg"), hs = document.getElementById("hero-photo");
         if (hp && hs) { var p = hp.cloneNode(); p.removeAttribute("id"); p.hidden = false; hs.replaceWith(p); }
-        drawWalk(); loadWalk();
+        drawCW(); drawWalk(); loadWalk();
         var wt = setInterval(function () { if (document.visibilityState === "visible") loadWalk(); }, 60000);
         cleanups.push(function () { clearInterval(wt); });
       };
@@ -1288,7 +1329,9 @@
         h += '<p class="x-fallback">Having trouble? <a href="https://www.youtube.com/watch?v=' + id + '" target="_blank" rel="noopener">Watch on YouTube ↗</a></p></div></section>';
         app.innerHTML = h;
         var f = document.createElement("iframe");
-        f.src = (YTM[id] ? "https://www.youtube.com/embed/" : "https://www.youtube-nocookie.com/embed/") + id + "?autoplay=1&rel=0&modestbranding=1&playsinline=1";
+        cwRecord(id);
+        var cwFrom = cwStart(id), cwOrigin = /^https?:/.test(location.origin || "") ? location.origin : "";
+        f.src = (YTM[id] ? "https://www.youtube.com/embed/" : "https://www.youtube-nocookie.com/embed/") + id + "?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1" + (cwOrigin ? "&origin=" + encodeURIComponent(cwOrigin) : "") + (cwFrom ? "&start=" + cwFrom : "");
         f.title = title; f.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen"; f.allowFullscreen = true; f.setAttribute("allowfullscreen", "");
         var screen = document.getElementById("screen"), pl = document.getElementById("player"), crt = document.getElementById("crt"), intro = document.getElementById("intro"), tm = [];
         screen.prepend(f);
@@ -1328,6 +1371,25 @@
           award(id).catch(function () { retryAt = Date.now() + 30000; }).then(function () { awarding = false; });
         }, 1000);
         cleanups.push(function () { clearInterval(et); });
+        // Continue Watching: read position from the embed's postMessage info events, save every ~15s
+        var cwT = -1, cwD = 0, cwHeard = false, cwSaved = -1;
+        function cwPing() { try { f.contentWindow.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*"); } catch (x) {} }
+        function cwMsg(ev) {
+          if (ev.source !== f.contentWindow || !/youtube(-nocookie)?\.com$/.test(String(ev.origin).replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/:\d+$/, ""))) return;
+          var d = ev.data; if (typeof d === "string") { try { d = JSON.parse(d); } catch (x) { return; } }
+          if (!d || !d.info) return; cwHeard = true;
+          if (typeof d.info.currentTime === "number") cwT = d.info.currentTime;
+          if (typeof d.info.duration === "number" && d.info.duration > 0) cwD = d.info.duration;
+        }
+        function cwFlush() { if (cwT >= 0 && Math.round(cwT) !== cwSaved) { cwSaved = Math.round(cwT); cwProgress(id, cwT, cwD); } }
+        window.addEventListener("message", cwMsg);
+        f.addEventListener("load", cwPing);
+        var cwPingT = setInterval(function () { if (!cwHeard) cwPing(); }, 2000);
+        var cwSaveT = setInterval(cwFlush, 15000);
+        function cwHide() { if (document.visibilityState === "hidden") cwFlush(); }
+        document.addEventListener("visibilitychange", cwHide);
+        window.addEventListener("pagehide", cwFlush);
+        cleanups.push(function () { cwFlush(); clearInterval(cwPingT); clearInterval(cwSaveT); window.removeEventListener("message", cwMsg); document.removeEventListener("visibilitychange", cwHide); window.removeEventListener("pagehide", cwFlush); });
       };
 
       function hubData(n){ var mv=MOVIES.filter(function(m){return m.src===n;}); var sh=showList.filter(function(s){ return s.eps.some(function(e){ return hubOf(e.src)===n; }); }); return {mv:mv, sh:sh}; }
