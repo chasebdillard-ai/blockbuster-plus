@@ -86,8 +86,8 @@
   btn.addEventListener("click", open);
   if (location.hash === "#live") setTimeout(open, 50);
 
-  function open() { ov.hidden = false; d.documentElement.style.overflow = "hidden"; if (location.hash !== "#live") history.replaceState(null, "", "#live"); render(); }
-  function close() {
+  function open() { if (window.BBSFX) window.BBSFX.tvOn(); ov.hidden = false; d.documentElement.style.overflow = "hidden"; if (location.hash !== "#live") history.replaceState(null, "", "#live"); render(); }
+  function close() { if (window.BBSFX) window.BBSFX.tvOff();
     rtStop(); ov.hidden = true; d.documentElement.style.overflow = ""; stop();
     if (location.hash === "#live") history.replaceState(null, "", location.pathname + location.search);
   }
@@ -235,7 +235,7 @@
     });
   }
 
-  function tune(ch, forceIdx) {
+  function tune(ch, forceIdx) { if (window.BBSFX) window.BBSFX.tvOn();
     cur = ch; try { localStorage.setItem("live_ch_" + (CFG.site || ""), ch); } catch (e) {}
     var cfg = (CFG.channels || []).filter(function (c) { return c.id === ch; })[0] || {};
     ov.querySelectorAll("[data-ch]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.ch === ch); });

@@ -568,7 +568,7 @@
       <main id="app" tabindex="-1"></main>
       <footer class="x-foot">
         <p>All titles stream free from their official YouTube channels. Blockbuster+ is an independent fan project and is not affiliated with Blockbuster or DISH.</p>
-        <p class="x-studios"><a href="#studios" style="color:inherit">Browse all studio hubs ›</a></p><button class="x-snd" type="button" id="sndbtn" aria-pressed="true">🔊 Button clicks: ON</button>
+        <p class="x-studios"><a href="#studios" style="color:inherit">Browse all studio hubs ›</a></p><button class="x-snd" type="button" id="sndbtn" aria-pressed="true">🔊 Sound effects: ON</button>
       </footer>
     </div>
     <img id="heroimg" src="hv_hero.jpg" alt="Inside a 1990s video store at night, aisles of tapes under hanging signs" hidden />
@@ -830,7 +830,7 @@
 
       // ---- Members: Supabase over plain fetch ----
       var SB = "https://cubbuiahnhgfpdeubldu.supabase.co", KEY = "sb_publishable_Sj8SNl5Zi0AwjxsIrNGNtQ_B--yHhYi", SKEY = "hvplus_session";
-      var session = null, profile = null, rentRows = null, rentLoading = false, rentErr = "", pendingRent = null, curRoute = "";
+      var session = null, profile = null, rentRows = null, rentLoading = false, rentErr = "", pendingRent = null, curRoute = "", curArg = "";
       var walkRows = null, walkErr = false, awarded = {};
       var acct = document.getElementById("acct"), acctbar = document.getElementById("acctbar"), toastEl = document.getElementById("toast");
       try { localStorage.removeItem("hvplus-rentals"); } catch (e) { /* old local-only rentals */ }
@@ -1366,20 +1366,37 @@
       V.notfound = function () { app.innerHTML = '<div class="x-section x-empty">TRACKING ERROR.<br>THAT TAPE IS NOT ON THE SHELF.<br><br><a class="x-btn" href="#store">Back to the store</a></div>'; };
 
 
-      // 90s plastic button clicks
+      // 90s plastic button clicks + CRT static
       (function(){
-        var ctx=null, on=true, nb=null; try{ on=localStorage.getItem("bbclick")!=="off"; }catch(e){}
-        function ac(){ if(!ctx){ var C=window.AudioContext||window.webkitAudioContext; if(!C) return null; ctx=new C(); var len=Math.floor(ctx.sampleRate*0.03); nb=ctx.createBuffer(1,len,ctx.sampleRate); var d=nb.getChannelData(0); for(var i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,6); } if(ctx.state==="suspended") ctx.resume(); return ctx; }
-        function tick(f,g,dur,body){ var c=ac(); if(!c) return; var t=c.currentTime;
-          var n=c.createBufferSource(); n.buffer=nb; var bp=c.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=f*(0.94+Math.random()*0.12); bp.Q.value=3.5; var ng=c.createGain(); ng.gain.setValueAtTime(g,t); ng.gain.exponentialRampToValueAtTime(0.001,t+dur); n.connect(bp); bp.connect(ng); ng.connect(c.destination); n.start(t); n.stop(t+dur+0.01);
-          if(body){ var o=c.createOscillator(); o.type="triangle"; o.frequency.setValueAtTime(body,t); o.frequency.exponentialRampToValueAtTime(body*0.55,t+0.045); var og=c.createGain(); og.gain.setValueAtTime(g*0.55,t); og.gain.exponentialRampToValueAtTime(0.001,t+0.05); o.connect(og); og.connect(c.destination); o.start(t); o.stop(t+0.06); } }
-        var SEL="button, a[href], [role=button], summary, label.x-chip, [data-play], [data-movie]";
-        var down=null;
-        document.addEventListener("pointerdown",function(e){ if(!on||e.button>0) return; var b=e.target.closest&&e.target.closest(SEL); if(!b||b.disabled) return; down=b; tick(2600,0.55,0.025,190); },true);
-        document.addEventListener("pointerup",function(e){ if(!on||!down) return; down=null; setTimeout(function(){ tick(3800,0.28,0.015,0); },0); },true);
-        document.addEventListener("keydown",function(e){ if(!on||(e.key!=="Enter"&&e.key!==" ")) return; var b=document.activeElement; if(b&&b.matches&&b.matches(SEL)) tick(2600,0.5,0.025,190); },true);
-        function lbl(){ var s=document.getElementById("sndbtn"); if(s){ s.textContent=on?"🔊 Button clicks: ON":"🔇 Button clicks: OFF"; s.setAttribute("aria-pressed",String(on)); } }
-        document.addEventListener("click",function(e){ var s=e.target.closest&&e.target.closest("#sndbtn"); if(!s) return; on=!on; try{ localStorage.setItem("bbclick",on?"on":"off"); }catch(x){} lbl(); if(on) tick(2600,0.55,0.025,190); });
+        var ctx=null, out=null, on=true, nb=null, sb=null; try{ on=localStorage.getItem("bbclick")!=="off"; }catch(e){}
+        function noise(c,sec,shape){ var len=Math.floor(c.sampleRate*sec), b=c.createBuffer(1,len,c.sampleRate), d=b.getChannelData(0); for(var i=0;i<len;i++) d[i]=(Math.random()*2-1)*(shape?Math.pow(1-i/len,shape):1); return b; }
+        function ac(){ if(!ctx){ var C=window.AudioContext||window.webkitAudioContext; if(!C) return null; ctx=new C();
+            var comp=ctx.createDynamicsCompressor(); comp.threshold.value=-18; comp.knee.value=6; comp.ratio.value=6; comp.attack.value=0.001; comp.release.value=0.08;
+            out=ctx.createGain(); out.gain.value=2.2; out.connect(comp); comp.connect(ctx.destination);
+            nb=noise(ctx,0.03,5); sb=noise(ctx,1.2,0); }
+          if(ctx.state==="suspended") ctx.resume(); return ctx; }
+        function env(c,g,t,a,peak,dur){ g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+a); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); }
+        function tick(f,gain,dur,body){ var c=ac(); if(!c) return; var t=c.currentTime;
+          var n=c.createBufferSource(); n.buffer=nb; var bp=c.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=f*(0.94+Math.random()*0.12); bp.Q.value=2.5; var ng=c.createGain(); env(c,ng,t,0.001,gain,dur); n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t); n.stop(t+dur+0.02);
+          if(body){ var o=c.createOscillator(); o.type="square"; o.frequency.setValueAtTime(body,t); o.frequency.exponentialRampToValueAtTime(body*0.5,t+0.04); var lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=900; var og=c.createGain(); env(c,og,t,0.001,gain*0.7,0.055); o.connect(lp); lp.connect(og); og.connect(out); o.start(t); o.stop(t+0.07); } }
+        function hiss(t,dur,peak,rise,fall,hp){ var c=ctx, n=c.createBufferSource(); n.buffer=sb; n.playbackRate.value=0.9+Math.random()*0.2;
+          var f1=c.createBiquadFilter(); f1.type="highpass"; f1.frequency.value=hp||350; var f2=c.createBiquadFilter(); f2.type="peaking"; f2.frequency.value=4200; f2.gain.value=6;
+          var g=c.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+rise); g.gain.setValueAtTime(peak,t+dur-fall); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+          var am=c.createOscillator(), amg=c.createGain(); am.frequency.value=60; amg.gain.value=peak*0.25; am.connect(amg); amg.connect(g.gain); am.start(t); am.stop(t+dur);
+          n.connect(f1); f1.connect(f2); f2.connect(g); g.connect(out); n.start(t); n.stop(t+dur+0.02); }
+        function pop(t,from,to,dur,gain){ var c=ctx, o=c.createOscillator(), g=c.createGain(); o.type="sine"; o.frequency.setValueAtTime(from,t); o.frequency.exponentialRampToValueAtTime(to,t+dur); env(c,g,t,0.003,gain,dur); o.connect(g); g.connect(out); o.start(t); o.stop(t+dur+0.02); }
+        function snow(ms){ var scr=document.getElementById("screen")||document.querySelector(".lv-screen"); if(!scr) return; var cv=document.createElement("canvas"); cv.width=160; cv.height=90; cv.setAttribute("aria-hidden","true"); cv.style.cssText="position:absolute;inset:0;width:100%;height:100%;z-index:50;pointer-events:none;image-rendering:pixelated;opacity:.95;transition:opacity .2s"; scr.appendChild(cv);
+          var x=cv.getContext("2d"), im=x.createImageData(160,90), start=performance.now(); (function fr(now){ var d=im.data; for(var i=0;i<d.length;i+=4){ var v=Math.random()*255|0; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; } x.putImageData(im,0,0); if(now-start<ms) requestAnimationFrame(fr); else { cv.style.opacity="0"; setTimeout(function(){ cv.remove(); },220); } })(start); }
+        var api={ click:function(){ if(on) tick(2400,1.0,0.03,170); },
+          tvOn:function(){ if(!on||Date.now()-(api.last||0)<500) return; api.last=Date.now(); var c=ac(); if(!c) return; var t=c.currentTime+0.02; pop(t,90,40,0.12,0.9); hiss(t+0.03,0.75,0.7,0.04,0.3); setTimeout(function(){ snow(650); },30); },
+          tvOff:function(){ if(!on) return; var c=ac(); if(!c) return; var t=c.currentTime+0.01; hiss(t,0.35,0.6,0.01,0.25,600); pop(t+0.02,1400,60,0.25,0.55); } };
+        window.BBSFX=api;
+        var SEL="button, a[href], [role=button], summary, label.x-chip, [data-play], [data-movie]", down=null;
+        document.addEventListener("pointerdown",function(e){ if(!on||e.button>0) return; var b=e.target.closest&&e.target.closest(SEL); if(!b||b.disabled) return; down=b; tick(2400,1.0,0.03,170); },true);
+        document.addEventListener("pointerup",function(){ if(!on||!down) return; down=null; tick(3600,0.55,0.018,0); },true);
+        document.addEventListener("keydown",function(e){ if(!on||(e.key!=="Enter"&&e.key!==" ")) return; var b=document.activeElement; if(b&&b.matches&&b.matches(SEL)) tick(2400,1.0,0.03,170); },true);
+        function lbl(){ var s=document.getElementById("sndbtn"); if(s){ s.textContent=on?"🔊 Sound effects: ON":"🔇 Sound effects: OFF"; s.setAttribute("aria-pressed",String(on)); } }
+        document.addEventListener("click",function(e){ var s=e.target.closest&&e.target.closest("#sndbtn"); if(!s) return; on=!on; try{ localStorage.setItem("bbclick",on?"on":"off"); }catch(x){} lbl(); if(on) tick(2400,1.0,0.03,170); });
         lbl();
       })();
       // router
@@ -1394,6 +1411,8 @@
         var nav = { store: "store", aisles: "aisles", aisle: "aisles", studios: "aisles", studio: "aisles", tv: "tv", show: "tv", search: "search", rentals: "rentals" }[r] || "";
         document.querySelectorAll(".x-nav a").forEach(function (a) { if (a.dataset.r === nav) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
         if (r === "aisle" || r === "show" || r === "play" || r === "studio") { if (!arg) r = "notfound"; }
+        var prevR = curRoute, prevA = curArg; curArg = arg;
+        if (window.BBSFX) { if (r === "play" && (prevR !== "play" || prevA !== arg)) window.BBSFX.tvOn(); else if (prevR === "play" && r !== "play") window.BBSFX.tvOff(); }
         curRoute = r || "store"; closeMenu();
         (V[r] || (r ? V.notfound : V.store))(arg);
         window.scrollTo(0, 0);
@@ -1451,6 +1470,6 @@
     })();
     </script>
   <script>window.LIVE_CFG={"site": "bb", "brand": "Blockbuster+ Live", "pitch": "Blockbuster+ Live TV", "data": "bb_live.json", "ver": 4, "guideHours": 12, "channels": [{"id": "bb", "name": "Blockbuster+ Live", "color": "#1d3fbb"}, {"id": "dark", "name": "Darkness Falls", "color": "#7a0b0b"}, {"id": "doc", "name": "What's Up DOC? TV", "color": "#2f855a"}, {"id": "kids", "name": "Kid Rewind", "color": "#f59e0b"}, {"id": "laugh", "name": "Laugh Track", "color": "#eab308"}, {"id": "rerun", "name": "Rerun Lane", "color": "#8b5cf6"}, {"id": "reality", "name": "Reality Check", "color": "#ec4899"}, {"id": "heart", "name": "Heartstrings", "color": "#e11d48"}, {"id": "kaboom", "name": "KABOOM!", "color": "#ea580c"}, {"id": "saddle", "name": "Saddle Up!", "color": "#a16207"}, {"id": "fala", "name": "Fa-La-La TV", "color": "#16a34a"}, {"id": "fanfare", "name": "Fan Fare", "color": "#0ea5e9"}]};</script>
-<script src="live.js?v=3"></script>
+<script src="live.js?v=4"></script>
 </body>
 </html>
