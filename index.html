@@ -1306,10 +1306,12 @@
         }
         function toCRT() {
           stop(); if (intro) { intro.remove(); intro = null; }
+          if (window.BBSFX) window.BBSFX.tvOn();
           setMode(true); osd();
           later(function () { setMode(false); }, 3000);
         }
         crt.addEventListener("click", function () { stop(); var on = !pl.classList.contains("is-crt"); setMode(on); if (on) osd(); });
+        if (!intro && window.BBSFX) window.BBSFX.tvOn();
         if (intro) {
           intro.addEventListener("click", toCRT);
           later(function () { var c = document.getElementById("clock"); if (c) { c.textContent = "PLAY ▶"; c.classList.add("is-on"); } }, 560);
@@ -1385,10 +1387,10 @@
           var am=c.createOscillator(), amg=c.createGain(); am.frequency.value=60; amg.gain.value=peak*0.25; am.connect(amg); amg.connect(g.gain); am.start(t); am.stop(t+dur);
           n.connect(f1); f1.connect(f2); f2.connect(g); g.connect(out); n.start(t); n.stop(t+dur+0.02); }
         function pop(t,from,to,dur,gain){ var c=ctx, o=c.createOscillator(), g=c.createGain(); o.type="sine"; o.frequency.setValueAtTime(from,t); o.frequency.exponentialRampToValueAtTime(to,t+dur); env(c,g,t,0.003,gain,dur); o.connect(g); g.connect(out); o.start(t); o.stop(t+dur+0.02); }
-        function snow(ms){ var scr=document.getElementById("screen")||document.querySelector(".lv-screen"); if(!scr) return; var cv=document.createElement("canvas"); cv.width=160; cv.height=90; cv.setAttribute("aria-hidden","true"); cv.style.cssText="position:absolute;inset:0;width:100%;height:100%;z-index:50;pointer-events:none;image-rendering:pixelated;opacity:.95;transition:opacity .2s"; scr.appendChild(cv);
+        function snow(ms){ var scr=document.getElementById("screen"); if(!scr||!scr.offsetParent){ var ls=document.querySelector(".lv-screen"); if(ls&&ls.offsetParent) scr=ls; } if(!scr) return; var cv=document.createElement("canvas"); cv.width=160; cv.height=90; cv.setAttribute("aria-hidden","true"); cv.style.cssText="position:absolute;inset:0;width:100%;height:100%;z-index:50;pointer-events:none;image-rendering:pixelated;opacity:.95;transition:opacity .2s"; scr.appendChild(cv);
           var x=cv.getContext("2d"), im=x.createImageData(160,90), start=performance.now(); (function fr(now){ var d=im.data; for(var i=0;i<d.length;i+=4){ var v=Math.random()*255|0; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; } x.putImageData(im,0,0); if(now-start<ms) requestAnimationFrame(fr); else { cv.style.opacity="0"; setTimeout(function(){ cv.remove(); },220); } })(start); }
         var api={ click:function(){ if(on) tick(2400,1.0,0.03,170); },
-          tvOn:function(){ if(!on||Date.now()-(api.last||0)<500) return; api.last=Date.now(); var c=ac(); if(!c) return; var t=c.currentTime+0.02; pop(t,90,40,0.12,0.9); hiss(t+0.03,0.75,0.7,0.04,0.3); setTimeout(function(){ snow(650); },30); },
+          tvOn:function(){ if(!on||Date.now()-(api.last||0)<500) return; api.last=Date.now(); var c=ac(); if(!c) return; var t=c.currentTime+0.02; pop(t,90,40,0.12,0.9); hiss(t+0.03,0.75,0.7,0.04,0.3); snow(800); },
           tvOff:function(){ if(!on) return; var c=ac(); if(!c) return; var t=c.currentTime+0.01; hiss(t,0.35,0.6,0.01,0.25,600); pop(t+0.02,1400,60,0.25,0.55); } };
         window.BBSFX=api;
         var SEL="button, a[href], [role=button], summary, label.x-chip, [data-play], [data-movie]", down=null;
@@ -1412,7 +1414,7 @@
         document.querySelectorAll(".x-nav a").forEach(function (a) { if (a.dataset.r === nav) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
         if (r === "aisle" || r === "show" || r === "play" || r === "studio") { if (!arg) r = "notfound"; }
         var prevR = curRoute, prevA = curArg; curArg = arg;
-        if (window.BBSFX) { if (r === "play" && (prevR !== "play" || prevA !== arg)) window.BBSFX.tvOn(); else if (prevR === "play" && r !== "play") window.BBSFX.tvOff(); }
+        if (window.BBSFX) { if (prevR === "play" && r !== "play") window.BBSFX.tvOff(); }
         curRoute = r || "store"; closeMenu();
         (V[r] || (r ? V.notfound : V.store))(arg);
         window.scrollTo(0, 0);
