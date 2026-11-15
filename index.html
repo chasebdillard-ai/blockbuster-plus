@@ -1086,7 +1086,7 @@
           if (!pw) { err.textContent = "Enter your password."; f.password.focus(); return; }
           btn.disabled = true; btn.textContent = mode === "signup" ? "Printing your card…" : "Checking…";
           var url = mode === "signup" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password";
-          var body = mode === "signup" ? { email: email, password: pw, data: { display_name: name, phone: phone } } : { email: email, password: pw };
+          var body = mode === "signup" ? { email: email, password: pw, data: { display_name: name, phone: phone, signup_site: "Blockbuster+" } } : { email: email, password: pw };
           call(url, { method: "POST", body: body }).then(function (d) {
             if (!setSession(d)) {
               var dup = d && d.user && Array.isArray(d.user.identities) && !d.user.identities.length;
