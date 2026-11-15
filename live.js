@@ -67,7 +67,7 @@
     ".lv-on b{color:var(--c,#d90429)!important}.lv-gch{border:1px solid #22252f;border-radius:10px;margin:0 0 8px;padding:0 10px;border-left:6px solid var(--c)}.lv-gch summary{display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;list-style:none}.lv-gch summary::-webkit-details-marker{display:none}" +
     ".lv-gn{flex:0 0 auto;font-weight:800;color:#fff}.lv-gnow{flex:1;min-width:0;color:#9aa0ad;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lv-gw{flex:0 0 auto;padding:5px 10px;border-radius:8px;border:0;background:var(--c);color:#fff;font-weight:800;cursor:pointer}" +
     ".lv-guide{list-style:none;margin:0;padding:0;border-top:1px solid #22252f}.lv-guide li{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #22252f}" +
-    ".lv-guide b{flex:0 0 78px;color:#9aa0ad;font-weight:700}.lv-guide span{flex:1}" +
+    ".lv-guide b{flex:0 0 92px;white-space:nowrap;color:#9aa0ad;font-weight:700}.lv-guide span{flex:1}" +
     ".lv-auth{max-width:420px;margin:40px auto;background:#11131a;border:1px solid #22252f;border-radius:14px;padding:22px}" +
     ".lv-auth h3{margin:0 0 6px;font-size:22px}.lv-auth p{margin:0 0 14px;color:#b8bcc8}" +
     ".lv-auth label{display:block;font-size:13px;font-weight:700;margin:10px 0 4px;color:#c8ccd6}" +
@@ -149,7 +149,7 @@
   function rtStart() {
     rt.want = true;
     if (rt.ws || !window.WebSocket) return;
-    var uid = session && session.user && session.user.id || ("anon-" + Math.random().toString(36).slice(2));
+    var uid = session && session.user && session.user.id || ("anon-" + Math.random().toString(36).slice(2)); rt.me = uid;
     var ws = rt.ws = new WebSocket(SB.replace("https", "wss") + "/realtime/v1/websocket?apikey=" + KEY + "&vsn=1.0.0");
     ws.onopen = function () {
       rt.state = {}; rt.joined = false;
@@ -178,7 +178,7 @@
   function rtStop() { rt.want = false; clearTimeout(rt.retry); if (rt.ws) { try { rt.ws.close(); } catch (e) {} } rt.ws = null; rt.state = {}; }
   function counts() {
     var c = {}, total = 0;
-    Object.keys(rt.state).forEach(function (k) { var ms = rt.state[k].metas || []; var last = ms[ms.length - 1]; if (last && last.ch) { c[last.ch] = (c[last.ch] || 0) + 1; total++; } });
+    Object.keys(rt.state).forEach(function (k) { var ms = rt.state[k].metas || []; var last = ms[ms.length - 1], chn = (k === rt.me && cur) ? cur : (last && last.ch); if (chn) { c[chn] = (c[chn] || 0) + 1; total++; } });
     ov.querySelectorAll("[data-ch]").forEach(function (b) { var n = b.querySelector(".lv-n"); if (!n) { n = d.createElement("span"); n.className = "lv-n"; b.appendChild(n); } n.textContent = "👁 " + (c[b.dataset.ch] || 0); });
     var w = ov.querySelector(".lv-watch"); if (w && cur) { var n2 = c[cur] || 0; w.textContent = "👁 " + n2.toLocaleString() + " watching now"; }
   }
