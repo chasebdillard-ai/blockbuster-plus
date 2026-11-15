@@ -4,6 +4,35 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Blockbuster+</title>
+    <link rel="icon" type="image/png" href="favicon-64.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" id="x-icon-192" />
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" id="x-icon-512" />
+    <script>
+      (function () {
+        var manifest = {
+          name: "Blockbuster+",
+          short_name: "Blockbuster+",
+          start_url: location.href.split(/[?#]/)[0],
+          display: "standalone",
+          background_color: "#0A3CA8",
+          theme_color: "#0A3CA8",
+          icons: [
+            { src: document.getElementById("x-icon-192").href, sizes: "192x192", type: "image/png" },
+            { src: document.getElementById("x-icon-512").href, sizes: "512x512", type: "image/png" }
+          ]
+        };
+        var link = document.createElement("link");
+        link.rel = "manifest";
+        link.href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(manifest));
+        document.head.appendChild(link);
+      })();
+    </script>
+    <meta name="apple-mobile-web-app-title" content="Blockbuster+" />
+    <meta name="application-name" content="Blockbuster+" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#0A3CA8" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://i.ytimg.com" />
