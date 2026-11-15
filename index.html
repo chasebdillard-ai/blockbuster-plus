@@ -211,6 +211,15 @@
       .x-trlmodal iframe { width: 100%; aspect-ratio: 16/9; border: 0; background: #000; }
       .x-trlmodal p { color: #fff; margin: 8px 0; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
       .x-trlrow { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; }
+
+      .lv-btn { display: none !important; }
+      .x-live { margin: 22px 20px 0; display: flex; align-items: center; gap: 16px; padding: 14px 16px; background: #0d1030; color: #fff; border: 3px solid #d90429; border-radius: 8px; flex-wrap: wrap; }
+      .x-live__btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 999px; border: 0; background: #d90429; color: #fff; font: 800 17px/1 system-ui, sans-serif; letter-spacing: .04em; cursor: pointer; box-shadow: 0 4px 14px #d9042966; }
+      .x-live__dot { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: xlivep 1.2s infinite; }
+      @keyframes xlivep { 50% { opacity: .25; } }
+      .x-live__r { flex: 1; min-width: 200px; }
+      .x-live__r h2 { margin: 0 0 4px; font-size: 19px; color: #ffd400; }
+      .x-live__r p { margin: 0 0 8px; font-size: 14px; line-height: 1.35; color: #e6e8f0; }
       /* Staff picks */
       .x-pick { width: 150px; display: grid; gap: 10px; justify-items: center; }
       .x-staff { margin: 0; width: 100%; background: #fffbd1; color: #1a1a6e; padding: 8px 9px 10px; border-radius: 2px; transform: rotate(-2deg); box-shadow: 0 3px 6px #0004; font: 14px/1.25 var(--x-hand); border-top: 8px solid #ffe36b; }
@@ -1095,6 +1104,7 @@
           '<div class="x-hero__copy"><span id="hero-logo"></span><h1>Be kind. Press play.</h1>' +
           '<p class="x-counts">' + fmt(MOVIES.length) + " movies · " + fmt(TV.length) + " TV episodes · always free</p>" +
           '<div class="x-cta"><a class="x-btn" href="#aisles">Browse the Aisles</a><a class="x-btn x-btn--red" href="#tv">TV Section</a></div></div></section>';
+        h += '<section class="x-live"><div class="x-live__l"><button class="x-live__btn" type="button" data-golive><span class="x-live__dot"></span>LIVE TV</button></div><div class="x-live__r"><h2>12 channels. On the air right now.</h2><p>' + (session ? 'Darkness Falls, Kid Rewind, What\'s Up DOC? TV and more, free for members. Tap LIVE TV to tune in.' : 'Darkness Falls, Kid Rewind, What\'s Up DOC? TV and more. Create your free Blockbuster+ account to watch live TV.') + '</p>' + (session ? '' : '<button class="x-btn x-btn--sm" type="button" data-golive>Create free account</button>') + '</div></section>';
         h += '<section class="x-section"><div class="x-row-head">' + sign("New Release Wall", 0) + '<a class="x-more" href="#aisle/new">See the wall ›</a></div><div class="x-shelf"><div class="x-row">' + MOVIES.slice(0, 40).map(box).join("") + "</div></div></section>";
         if (TRAILERS.length) h += '<section class="x-section"><div class="x-row-head">' + sign("Coming Soon to a Theater Near You", 1) + '<a class="x-more" href="#trailers">All ' + TRAILERS.length + ' trailers ›</a></div><div class="x-trlrow">' + TRAILERS.slice(0, 24).map(trlTile).join("") + "</div></section>";
         h += '<section class="x-section"><div class="x-row-head">' + sign("Staff Picks", 1) + '<p class="x-sub">Fresh picks every time you walk in.</p></div><div class="x-shelf"><div class="x-row">' +
@@ -1302,6 +1312,7 @@
       V.trailers = function () {
         app.innerHTML = '<div class="x-section">' + sign("Coming Soon to a Theater Near You", 1, "h1") + '<p class="x-sub">' + TRAILERS.length + ' trailers from AMC, Regal and the major studios.</p></div><section class="x-section"><div class="x-trl-grid">' + TRAILERS.map(trlTile).join("") + "</div></section>";
       };
+      document.addEventListener("click", function (e) { if (e.target.closest("[data-golive]")) { var b = document.querySelector(".lv-btn"); if (b) b.click(); } });
       V.live = function () { V.store(); };
       V.notfound = function () { app.innerHTML = '<div class="x-section x-empty">TRACKING ERROR.<br>THAT TAPE IS NOT ON THE SHELF.<br><br><a class="x-btn" href="#store">Back to the store</a></div>'; };
 
